@@ -1,0 +1,614 @@
+{
+  "opencode": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "CLI + desktop app on all three",
+    "source": "https://github.com/anomalyco/opencode#readme"
+  },
+  "omp": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/can1357/oh-my-pi#readme"
+  },
+  "gemini": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Recommends macOS 15+, Win 11 24H2+, Ubuntu 20.04+",
+    "source": "https://geminicli.com/docs/get-started/installation/"
+  },
+  "copilot": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows needs PowerShell 6+",
+    "source": "https://github.com/github/copilot-cli#readme"
+  },
+  "goose": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "CLI + desktop app on all three",
+    "source": "https://github.com/aaif-goose/goose#readme"
+  },
+  "qwen": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/QwenLM/qwen-code#readme"
+  },
+  "crush": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "android"
+    ],
+    "note": "Also FreeBSD/OpenBSD/NetBSD",
+    "source": "https://github.com/charmbracelet/crush#readme"
+  },
+  "aider": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://aider.chat/docs/install.html"
+  },
+  "auggie": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Docs: Windows via WSL; a native .exe is also released",
+    "source": "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"
+  },
+  "kilocode": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/Kilo-Org/kilocode#readme"
+  },
+  "cline": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "CLI via npm; Desktop app Mac + Windows (beta)",
+    "source": "https://docs.cline.bot/getting-started/installing-cline"
+  },
+  "claude-squad": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Needs tmux; Windows builds exist but undocumented",
+    "source": "https://github.com/smtg-ai/claude-squad#readme"
+  },
+  "vibe-kanban": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/BloopAI/vibe-kanban/blob/main/npx-cli/README.md"
+  },
+  "hermes": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "android"
+    ],
+    "note": "Android via Termux; desktop app Apple Silicon only",
+    "source": "https://hermes-agent.nousresearch.com/docs/getting-started/installation"
+  },
+  "openclaw": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android"
+    ],
+    "note": "",
+    "source": "https://github.com/openclaw/openclaw#readme"
+  },
+  "dsh": {
+    "platforms": [],
+    "note": "couldn't confirm; dev preview, no OS list published",
+    "source": "https://github.com/deepseek-ai/deepseek-harness#readme"
+  },
+  "openhands": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Windows via WSL only",
+    "source": "https://docs.openhands.dev/openhands/usage/cli/installation"
+  },
+  "codewhale": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "android"
+    ],
+    "note": "Android/Termux is a preview",
+    "source": "https://github.com/codewhale-hq/Codewhale#readme"
+  },
+  "reasonix": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "android"
+    ],
+    "note": "Android = ReasonixMobile APK",
+    "source": "https://github.com/esengine/DeepSeek-Reasonix#readme"
+  },
+  "freebuff": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "android",
+      "web"
+    ],
+    "note": "iOS app coming soon",
+    "source": "https://freebuff.com"
+  },
+  "kimi": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Now Kimi Code CLI; Windows needs Git for Windows",
+    "source": "https://github.com/MoonshotAI/kimi-code#readme"
+  },
+  "forge": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "From release binaries (also Android); no OS docs",
+    "source": "https://github.com/tailcallhq/forgecode/releases/latest"
+  },
+  "vibe": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Works on Windows; officially targets UNIX",
+    "source": "https://github.com/mistralai/mistral-vibe#readme"
+  },
+  "kode": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/shareAI-lab/Kode-CLI#readme"
+  },
+  "letta": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows ARM64 and Alpine/musl unsupported",
+    "source": "https://github.com/letta-ai/letta-code#readme"
+  },
+  "nanocoder": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows covered by CI and docs, no OS list",
+    "source": "https://github.com/Nano-Collective/nanocoder/blob/main/docs/features/notifications.md"
+  },
+  "cn": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Continue repo is now read-only/unmaintained",
+    "source": "https://github.com/continuedev/continue/blob/main/extensions/cli/README.md"
+  },
+  "paperclipai": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Self-hosted server with web UI",
+    "source": "https://github.com/paperclipai/paperclip/blob/master/releases/v2026.722.0.md"
+  },
+  "ruflo": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "On Windows use npx; curl installer needs POSIX",
+    "source": "https://github.com/ruvnet/ruflo#readme"
+  },
+  "happy": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android",
+      "web"
+    ],
+    "note": "CLI + desktop; mobile apps iOS/Android/web",
+    "source": "https://happy.engineering"
+  },
+  "paseo": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android",
+      "web"
+    ],
+    "note": "",
+    "source": "https://github.com/getpaseo/paseo#readme"
+  },
+  "gt": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Native Windows minimal CLI-only; WSL for full use",
+    "source": "https://github.com/gastownhall/gastown#readme"
+  },
+  "aoe": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Windows via WSL2 only",
+    "source": "https://github.com/agent-of-empires/agent-of-empires#readme"
+  },
+  "ralph": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Docs list Windows, but no Windows binaries",
+    "source": "https://github.com/mikeyobrien/ralph-orchestrator/blob/main/docs/installation.md"
+  },
+  "workmux": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Windows not supported",
+    "source": "https://github.com/raine/workmux/blob/main/docs/src/content/docs/guide/wezterm.md"
+  },
+  "dmux": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Requires tmux; Windows not mentioned",
+    "source": "https://github.com/standardagents/dmux#readme"
+  },
+  "agent-deck": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Windows via WSL only",
+    "source": "https://github.com/asheshgoplani/agent-deck#readme"
+  },
+  "nanobot": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows x64 only",
+    "source": "https://github.com/HKUDS/nanobot#readme"
+  },
+  "octop": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Also self-hosted web dashboard, FnOS NAS",
+    "source": "https://github.com/TencentCloud/Octop#readme"
+  },
+  "openmausbot": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Linux = Ubuntu 24.04 x64",
+    "source": "https://github.com/milind-soni/OpenMausBot#readme"
+  },
+  "ccmanager": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows via npm win32-x64 binary",
+    "source": "https://github.com/kbwo/ccmanager#readme"
+  },
+  "omnara": {
+    "platforms": [
+      "macos",
+      "linux",
+      "web"
+    ],
+    "note": "Daemon macOS/Linux; Windows not confirmed",
+    "source": "https://github.com/omnara-ai/omnara#readme"
+  },
+  "Rex": {
+    "platforms": [
+      "macos",
+      "ios",
+      "web"
+    ],
+    "note": "Linux/Windows not mentioned",
+    "source": "https://superlogical.com"
+  },
+  "cmux": {
+    "platforms": [
+      "macos",
+      "ios"
+    ],
+    "note": "macOS only; iOS companion in TestFlight beta",
+    "source": "https://github.com/manaflow-ai/cmux#readme"
+  },
+  "Orca": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android"
+    ],
+    "note": "",
+    "source": "https://github.com/stablyai/orca#readme"
+  },
+  "Conductor": {
+    "platforms": [
+      "macos",
+      "ios"
+    ],
+    "note": "Desktop is macOS only; iOS app",
+    "source": "https://conductor.build"
+  },
+  "Superset": {
+    "platforms": [
+      "macos",
+      "linux",
+      "ios"
+    ],
+    "note": "Linux experimental (x64 AppImage); no Windows",
+    "source": "https://github.com/ParadevAI/Paradev#readme"
+  },
+  "Emdash": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/generalaction/emdash#readme"
+  },
+  "Nimbalyst": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios"
+    ],
+    "note": "iOS companion app",
+    "source": "https://github.com/Nimbalyst/nimbalyst#readme"
+  },
+  "Sculptor": {
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "note": "Apple Silicon only; Intel Mac + Windows coming",
+    "source": "https://imbue.com/sculptor"
+  },
+  "Warp": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://www.warp.dev/download"
+  },
+  "Kiro": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Mobile in early access",
+    "source": "https://kiro.dev/downloads/"
+  },
+  "Zed": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/zed-industries/zed#readme"
+  },
+  "Grok Bot": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android"
+    ],
+    "note": "Early beta on paid plans",
+    "source": "https://docs.x.ai/grok-bot/faq"
+  },
+  "Muse": {
+    "platforms": [
+      "macos",
+      "ios",
+      "android"
+    ],
+    "note": "Mac app beta; Android per press; no Windows yet",
+    "source": "https://ai.meta.com/muse/download/"
+  },
+  "Claude Duet": {
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "note": "Research preview; US waitlist",
+    "source": "https://claude.com/product/claude-duet"
+  },
+  "claude": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows native or WSL",
+    "source": "https://code.claude.com/docs/en/setup"
+  },
+  "codex": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/openai/codex#readme"
+  },
+  "amp": {
+    "platforms": [
+      "macos",
+      "linux",
+      "ios",
+      "android",
+      "web"
+    ],
+    "note": "CLI on Windows via WSL only",
+    "source": "https://ampcode.com/docs/markdown/cli"
+  },
+  "cursor-agent": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows native (PowerShell) or WSL",
+    "source": "https://cursor.com/docs/cli/installation"
+  },
+  "droid": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://docs.factory.com/droid-cli/quickstart"
+  },
+  "grok": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows native (PowerShell) or WSL",
+    "source": "https://docs.x.ai/build/overview"
+  },
+  "pi": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "",
+    "source": "https://github.com/earendil-works/pi#readme"
+  },
+  "agy": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Also Googlebook (Linux terminal)",
+    "source": "https://antigravity.google/download"
+  },
+  "muse": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Per dev.meta.ai installers (sh + ps1)",
+    "source": "https://dev.meta.ai"
+  },
+  "t3": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows",
+      "ios",
+      "android",
+      "web"
+    ],
+    "note": "iOS/Android/web are remote-control apps",
+    "source": "https://github.com/pingdotgg/t3code#readme"
+  },
+  "herdr": {
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "note": "Windows native GA; some features differ",
+    "source": "https://herdr.dev/docs/windows-beta/"
+  }
+}

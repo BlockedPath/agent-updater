@@ -1,0 +1,509 @@
+{
+  "checked_at": "2026-10-31T18:02:34Z",
+  "agents": [
+    {
+      "name": "claude",
+      "kind": "agent",
+      "installed": "2.1.316",
+      "latest": "2.1.316",
+      "status": "current",
+      "updater": "claude update",
+      "bin": "/Users/you/.local/bin/claude",
+      "install_path": "/Users/you/.local/share/claude/versions/2.1.316",
+      "last_updated": "2026-10-31T15:52:41Z",
+      "app": "/Applications/Claude.app",
+      "icon_url": "https://www.google.com/s2/favicons?domain=claude.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Windows native or WSL"
+    },
+    {
+      "name": "codex",
+      "kind": "agent",
+      "installed": "0.166.0",
+      "latest": "0.167.0",
+      "status": "behind",
+      "updater": "codex update",
+      "bin": "/Users/you/.local/bin/codex",
+      "install_path": "/Users/you/.codex/packages/standalone/releases/0.166.0-aarch64-apple-darwin/bin/codex",
+      "last_updated": "2026-10-29T19:03:03Z",
+      "app": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=openai.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "amp",
+      "kind": "agent",
+      "installed": "0.0.1793462430-g2650be",
+      "latest": "0.0.1793600000-gab12cd",
+      "status": "behind",
+      "updater": "amp update --porcelain",
+      "bin": "/Users/you/.local/bin/amp",
+      "install_path": "/Users/you/.amp/bin/amp",
+      "last_updated": "2026-10-31T16:50:12Z",
+      "app": "/Applications/Amp.app",
+      "icon_url": "https://www.google.com/s2/favicons?domain=ampcode.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "ios",
+        "android",
+        "web"
+      ],
+      "platform_note": "CLI on Windows via WSL only"
+    },
+    {
+      "name": "cursor-agent",
+      "kind": "agent",
+      "installed": "2026.10.22-27dcf5f",
+      "latest": "2026.10.22-27dcf5f",
+      "status": "current",
+      "updater": "cursor-agent update",
+      "bin": "/Users/you/.local/bin/cursor-agent",
+      "install_path": "/Users/you/.local/share/cursor-agent/versions/2026.10.22-27dcf5f/cursor-agent",
+      "last_updated": "2026-10-22T08:38:31Z",
+      "app": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=cursor.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Windows native (PowerShell) or WSL"
+    },
+    {
+      "name": "droid",
+      "kind": "agent",
+      "installed": "1.1.0",
+      "latest": null,
+      "status": "unknown",
+      "updater": "droid update",
+      "bin": "/Users/you/.local/bin/droid",
+      "install_path": "/Users/you/.local/bin/droid",
+      "last_updated": "2026-10-31T16:50:50Z",
+      "app": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=factory.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "grok",
+      "kind": "agent",
+      "installed": "1.0.73",
+      "latest": "1.0.73",
+      "status": "current",
+      "updater": "grok update",
+      "bin": "/Users/you/.local/bin/grok",
+      "install_path": "/Users/you/.grok/downloads/grok-1.0.73-macos-aarch64",
+      "last_updated": "2026-10-31T16:51:00Z",
+      "app": "/Applications/Grok Bot.app",
+      "icon_url": "https://www.google.com/s2/favicons?domain=grok.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Windows native (PowerShell) or WSL"
+    },
+    {
+      "name": "pi",
+      "kind": "agent",
+      "installed": "1.4.0",
+      "latest": "1.4.0",
+      "status": "current",
+      "updater": "pi update --all --no-approve",
+      "bin": "/Users/you/.local/bin/pi",
+      "install_path": "/Users/you/.pi/agent/install/releases/1.4.0",
+      "last_updated": "2026-10-23T18:40:24Z",
+      "app": null,
+      "icon_url": "https://github.com/earendil-works.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "agy",
+      "kind": "agent",
+      "installed": "1.4.12",
+      "latest": "1.4.12",
+      "status": "current",
+      "updater": "agy update",
+      "bin": "/Users/you/.local/bin/agy",
+      "install_path": "/Users/you/.local/bin/agy",
+      "last_updated": "2026-10-31T16:51:14Z",
+      "app": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=antigravity.google&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Also Googlebook (Linux terminal)"
+    },
+    {
+      "name": "muse",
+      "kind": "agent",
+      "installed": "1.4.14-R7309.1",
+      "latest": "1.4.14-R7309.1",
+      "status": "current",
+      "updater": "muse launcher (sync update)",
+      "bin": "/Users/you/.local/bin/muse",
+      "install_path": "/Users/you/.local/bin/muse-bin-1.4.14-R7309.1",
+      "last_updated": "2026-10-31T16:05:16Z",
+      "app": "/Applications/Muse.app",
+      "icon_url": "https://www.google.com/s2/favicons?domain=meta.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Per dev.meta.ai installers (sh + ps1)"
+    },
+    {
+      "name": "t3",
+      "kind": "ade",
+      "installed": "0.1.6",
+      "latest": "0.1.6",
+      "status": "current",
+      "updater": "t3 update --yes",
+      "bin": "/Users/you/.t3/bin/t3",
+      "install_path": "/Users/you/.t3/runtime/versions/0.1.6",
+      "last_updated": "2026-10-31T16:51:31Z",
+      "app": "/Applications/T3 Code (Beta).app",
+      "icon_url": "https://github.com/pingdotgg.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows",
+        "ios",
+        "android",
+        "web"
+      ],
+      "platform_note": "iOS/Android/web are remote-control apps"
+    },
+    {
+      "name": "herdr",
+      "kind": "multiplexer",
+      "installed": "0.9.5",
+      "latest": "0.9.6",
+      "status": "behind",
+      "updater": "herdr update",
+      "bin": "/Users/you/.local/bin/herdr",
+      "install_path": "/Users/you/.local/bin/herdr",
+      "last_updated": "2026-10-14T19:52:41Z",
+      "app": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=herdr.dev&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Windows native GA; some features differ"
+    }
+  ],
+  "systems": [
+    {
+      "name": "Grok Bot",
+      "description": "Always-on Grok agent for your Mac",
+      "homepage": "https://grok.com",
+      "app": "/Applications/Grok Bot.app",
+      "status": "self",
+      "installed": "0.77.0",
+      "build": "0.77.0",
+      "latest": null,
+      "latest_build": null,
+      "last_updated": "2026-10-26T19:14:44Z",
+      "icon_url": "https://www.google.com/s2/favicons?domain=grok.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows",
+        "ios",
+        "android"
+      ],
+      "platform_note": "Early beta on paid plans"
+    },
+    {
+      "name": "Muse",
+      "description": "Meta's always-on personal agent",
+      "homepage": "https://www.meta.ai",
+      "app": "/Applications/Muse.app",
+      "status": "current",
+      "installed": "10.1",
+      "build": "1104267075",
+      "latest": "10.1",
+      "latest_build": "1104267075",
+      "last_updated": "2026-10-31T03:19:01Z",
+      "icon_url": "https://www.google.com/s2/favicons?domain=www.meta.ai&sz=128",
+      "platforms": [
+        "macos",
+        "ios",
+        "android"
+      ],
+      "platform_note": "Mac app beta; Android per press; no Windows yet"
+    },
+    {
+      "name": "Claude Duet",
+      "description": "Anthropic's proactive agent for iPhone, Android and the web",
+      "homepage": "https://claude.ai",
+      "app": null,
+      "status": "web",
+      "installed": null,
+      "build": null,
+      "latest": null,
+      "latest_build": null,
+      "last_updated": null,
+      "icon_url": "https://www.google.com/s2/favicons?domain=claude.ai&sz=128",
+      "platforms": [
+        "ios",
+        "android",
+        "web"
+      ],
+      "platform_note": "Research preview; US waitlist"
+    }
+  ],
+  "available": [
+    {
+      "name": "opencode",
+      "kind": "agent",
+      "description": "Open-source terminal coding agent from SST",
+      "homepage": "https://opencode.ai",
+      "install": "npm install -g opencode-ai",
+      "latest": "1.19.5",
+      "icon_url": "https://www.google.com/s2/favicons?domain=opencode.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "CLI + desktop app on all three"
+    },
+    {
+      "name": "omp",
+      "kind": "agent",
+      "description": "oh-my-pi: a batteries-included harness built on pi",
+      "homepage": "https://omp.sh",
+      "install": "npm install -g @oh-my-pi/pi-coding-agent",
+      "latest": "18.14.1",
+      "icon_url": "https://www.google.com/s2/favicons?domain=omp.sh&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "gemini",
+      "kind": "agent",
+      "description": "Google's Gemini agent for the terminal",
+      "homepage": "https://github.com/google-gemini/gemini-cli",
+      "install": "npm install -g @google/gemini-cli",
+      "latest": "0.66.0",
+      "icon_url": "https://www.google.com/s2/favicons?domain=gemini.google.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Recommends macOS 15+, Win 11 24H2+, Ubuntu 20.04+"
+    },
+    {
+      "name": "copilot",
+      "kind": "agent",
+      "description": "GitHub Copilot's coding agent in the terminal",
+      "homepage": "https://github.com/features/copilot/cli",
+      "install": "npm install -g @github/copilot",
+      "latest": "1.0.105",
+      "icon_url": "https://www.google.com/s2/favicons?domain=github.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "Windows needs PowerShell 6+"
+    },
+    {
+      "name": "goose",
+      "kind": "agent",
+      "description": "Block's open-source, extensible agent",
+      "homepage": "https://block.github.io/goose",
+      "install": "brew install block-goose-cli",
+      "latest": "1.57.0",
+      "icon_url": "https://github.com/block.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "CLI + desktop app on all three"
+    },
+    {
+      "name": "qwen",
+      "kind": "agent",
+      "description": "Qwen's coding agent, built on Gemini CLI",
+      "homepage": "https://github.com/QwenLM/qwen-code",
+      "install": "npm install -g @qwen-code/qwen-code",
+      "latest": "0.26.4",
+      "icon_url": "https://www.google.com/s2/favicons?domain=qwen.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "crush",
+      "kind": "agent",
+      "description": "Charm's glamorous terminal coding agent",
+      "homepage": "https://github.com/charmbracelet/crush",
+      "install": "npm install -g @charmland/crush",
+      "latest": "0.99.0",
+      "icon_url": "https://www.google.com/s2/favicons?domain=charm.sh&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows",
+        "android"
+      ],
+      "platform_note": "Also FreeBSD/OpenBSD/NetBSD"
+    },
+    {
+      "name": "aider",
+      "kind": "agent",
+      "description": "AI pair programming in your terminal",
+      "homepage": "https://aider.chat",
+      "install": "uv tool install aider-chat",
+      "latest": "0.86.2",
+      "icon_url": "https://www.google.com/s2/favicons?domain=aider.chat&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "auggie",
+      "kind": "agent",
+      "description": "Augment Code's agent with its context engine",
+      "homepage": "https://www.augmentcode.com",
+      "install": "npm install -g @augmentcode/auggie",
+      "latest": "0.36.0",
+      "icon_url": "https://www.google.com/s2/favicons?domain=augmentcode.com&sz=128",
+      "platforms": [
+        "macos",
+        "linux"
+      ],
+      "platform_note": "Docs: Windows via WSL; a native .exe is also released"
+    },
+    {
+      "name": "kilocode",
+      "kind": "agent",
+      "description": "Kilo Code's open-source agent for the terminal",
+      "homepage": "https://kilocode.ai",
+      "install": "npm install -g @kilocode/cli",
+      "latest": "7.8.18",
+      "icon_url": "https://www.google.com/s2/favicons?domain=kilocode.ai&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "cline",
+      "kind": "agent",
+      "description": "Cline's autonomous coding agent CLI",
+      "homepage": "https://cline.bot",
+      "install": "npm install -g cline",
+      "latest": "3.0.74",
+      "icon_url": "https://www.google.com/s2/favicons?domain=cline.bot&sz=128",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": "CLI via npm; Desktop app Mac + Windows (beta)"
+    },
+    {
+      "name": "claude-squad",
+      "kind": "orchestrator",
+      "description": "Runs Claude Code, Codex, Aider and others side by side in tmux",
+      "homepage": "https://github.com/smtg-ai/claude-squad",
+      "install": "brew install claude-squad",
+      "latest": "1.0.20",
+      "icon_url": "https://github.com/smtg-ai.png",
+      "platforms": [
+        "macos",
+        "linux"
+      ],
+      "platform_note": "Needs tmux; Windows builds exist but undocumented"
+    },
+    {
+      "name": "vibe-kanban",
+      "kind": "orchestrator",
+      "description": "Kanban board that hands tasks to coding agents in parallel",
+      "homepage": "https://www.vibekanban.com",
+      "install": "npm install -g vibe-kanban",
+      "latest": "0.1.44",
+      "icon_url": "https://github.com/BloopAI.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "platform_note": ""
+    },
+    {
+      "name": "hermes",
+      "kind": "system",
+      "description": "Nous Research's self-improving agent that learns skills as it works",
+      "homepage": "https://hermes-agent.nousresearch.com",
+      "install": "brew install hermes-agent",
+      "latest": "0.22.4",
+      "icon_url": "https://github.com/NousResearch.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows",
+        "android"
+      ],
+      "platform_note": "Android via Termux; desktop app Apple Silicon only"
+    },
+    {
+      "name": "openclaw",
+      "kind": "system",
+      "description": "Personal agent you reach from your messaging apps",
+      "homepage": "https://github.com/openclaw/openclaw",
+      "install": "npm install -g openclaw",
+      "latest": "2026.10.9",
+      "icon_url": "https://github.com/openclaw.png",
+      "platforms": [
+        "macos",
+        "linux",
+        "windows",
+        "ios",
+        "android"
+      ],
+      "platform_note": ""
+    }
+  ]
+}

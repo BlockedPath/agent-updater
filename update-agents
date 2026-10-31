@@ -1,0 +1,1020 @@
+#!/usr/bin/env bash
+# update-agents: find the coding-agent CLIs on this Mac, check each one against its newest
+# release, and update only the ones that are behind.
+#
+#   update-agents              show installed vs latest, ask, then update the agents that are behind
+#   update-agents claude pi    the same, for only the named agents (still only if they're behind)
+#   update-agents --all        run every known updater, even for agents that look current
+#   update-agents --yes        update without asking
+#   update-agents --list       show the table, how each agent updates, and popular agents you don't have
+#   update-agents --install opencode   install agents from that popular list
+#   update-agents --uninstall amp      move an agent's program files to the Trash (or run its
+#                                      package manager's uninstall); config and history stay.
+#                                      Add --dry-run to only print what it would remove.
+#   update-agents --json       print the table as JSON (used by the Agent Updater app), then stop
+#
+# Version checks run in parallel; updaters run one at a time (big downloads, 8 GB Mac). An agent
+# counts as updated only when its --version changes; updater output is kept in the log dir printed
+# at the end. `pi update --all` also refreshes pi's extensions, which the version check can't see:
+# run `update-agents --all pi` to refresh them while pi itself is current.
+
+set -uo pipefail
+
+PATH="$HOME/.local/bin:$HOME/.t3/bin:$HOME/.grok/bin:$HOME/.amp/bin:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+export MUSE_NO_AUTO_UPDATE=1 # keep `muse --version` from starting a background update
+# Box drawing measures characters, so make sure the locale is UTF-8.
+case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in *UTF-8* | *utf8*) ;; *) export LC_ALL=en_US.UTF-8 ;; esac
+
+UPDATE_TIMEOUT=300
+# Which operating systems each tool runs on (researched from each project's own docs and
+# release downloads): {"name": {"platforms": ["macos","linux","windows"], "note": "...", "source": "..."}}
+PLATFORMS_FILE=${UPDATE_AGENTS_PLATFORMS:-$(dirname "$(realpath "$0")")/agent-platforms.json}
+CHECK_TIMEOUT=10
+
+# name|self-update command[|label shown instead of the command]. A package-manager install
+# (brew, npm, bun, pnpm, uv, pipx) is updated through that manager instead. An empty command
+# means "package manager only".
+AGENTS=(
+  "claude|claude update"
+  "codex|codex update"
+  "amp|amp update --porcelain"
+  "cursor-agent|cursor-agent update"
+  "droid|droid update"
+  "grok|grok update"
+  "pi|pi update --all --no-approve"
+  "agy|agy update"
+  "muse|env MUSE_NO_AUTO_UPDATE=0 MUSE_SYNC_UPDATE=1 muse --version|muse launcher (sync update)"
+  "t3|t3 update --yes"
+  "herdr|herdr update"
+  "opencode|opencode upgrade"
+  "goose|goose update"
+  "claude-squad|"
+  "vibe-kanban|"
+  "omp|"
+  "hermes|"
+  "openclaw|"
+  "dsh|"
+  "openhands|"
+  "codewhale|"
+  "reasonix|"
+  "freebuff|"
+  "kimi|"
+  "forge|"
+  "vibe|"
+  "kode|"
+  "letta|"
+  "nanocoder|"
+  "cn|"
+  "paperclipai|"
+  "ruflo|"
+  "happy|"
+  "paseo|"
+  "gt|"
+  "aoe|"
+  "ralph|"
+  "workmux|"
+  "dmux|"
+  "agent-deck|"
+  "nanobot|"
+  "octop|"
+  "openmausbot|"
+  "ccmanager|"
+  "omnara|"
+  "gemini|"
+  "qwen|"
+  "copilot|"
+  "crush|"
+  "aider|"
+  "auggie|"
+  "kilocode|"
+  "cline|"
+)
+
+# Popular agents offered for install when they're missing:
+# name|install command|homepage|description. The name is the binary the install provides.
+# A pipe inside an install command is written as ¦ (the fields are |-separated).
+CATALOG=(
+  "opencode|npm install -g opencode-ai|https://opencode.ai|Open-source terminal coding agent from SST"
+  "omp|npm install -g @oh-my-pi/pi-coding-agent|https://omp.sh|oh-my-pi: a batteries-included harness built on pi"
+  "gemini|npm install -g @google/gemini-cli|https://github.com/google-gemini/gemini-cli|Google's Gemini agent; paid API or Code Assist only since June 2026 (Antigravity replaces it)"
+  "copilot|npm install -g @github/copilot|https://github.com/features/copilot/cli|GitHub Copilot's coding agent in the terminal"
+  "goose|brew install block-goose-cli|https://block.github.io/goose|Block's open-source, extensible agent"
+  "qwen|npm install -g @qwen-code/qwen-code|https://github.com/QwenLM/qwen-code|Qwen's coding agent, built on Gemini CLI"
+  "crush|npm install -g @charmland/crush|https://github.com/charmbracelet/crush|Charm's glamorous terminal coding agent"
+  "aider|uv tool install aider-chat|https://aider.chat|AI pair programming in your terminal (no commits since May 2026)"
+  "auggie|npm install -g @augmentcode/auggie|https://www.augmentcode.com|Augment Code's agent with its context engine"
+  "kilocode|npm install -g @kilocode/cli|https://kilocode.ai|Kilo Code's open-source agent for the terminal"
+  "cline|npm install -g cline|https://cline.bot|Cline's autonomous coding agent CLI"
+  "claude-squad|brew install claude-squad|https://github.com/smtg-ai/claude-squad|Runs Claude Code, Codex, Aider and others side by side in tmux"
+  "vibe-kanban|npm install -g vibe-kanban|https://www.vibekanban.com|Kanban board that hands tasks to coding agents in parallel"
+  "hermes|brew install hermes-agent|https://hermes-agent.nousresearch.com|Nous Research's self-improving agent that learns skills as it works"
+  "openclaw|npm install -g openclaw|https://github.com/openclaw/openclaw|Personal agent you reach from your messaging apps"
+  "dsh|npm install -g @deepseek-ai/dsh|https://github.com/deepseek-ai/deepseek-harness|DeepSeek's coding harness (preview release)"
+  "openhands|uv tool install openhands --python 3.12|https://pypi.org/project/openhands/|OpenHands' open-source coding agent for the terminal"
+  "codewhale|npm install -g codewhale|https://github.com/codewhale-hq/Codewhale|Terminal coding agent for hosted and local models"
+  "reasonix|brew install esengine/reasonix/reasonix|https://reasonix.io|DeepSeek-native coding agent with reasoning built in"
+  "freebuff|npm install -g freebuff|https://freebuff.com|Free coding agent from the Codebuff team"
+  "kimi|curl -fsSL https://code.kimi.com/kimi-code/install.sh ¦ bash|https://github.com/MoonshotAI/kimi-code|Moonshot's Kimi Code agent for the terminal"
+  "forge|npm install -g forgecode|https://forgecode.dev|Forge: a fast, model-agnostic coding agent"
+  "vibe|uv tool install mistral-vibe|https://github.com/mistralai/mistral-vibe|Mistral's minimal CLI coding agent"
+  "kode|npm install -g @shareai-lab/kode|https://github.com/shareAI-lab/kode|Terminal assistant that understands and edits your codebase"
+  "letta|npm install -g @letta-ai/letta-code|https://github.com/letta-ai/letta-code|Letta Code: coding with stateful agents that remember"
+  "nanocoder|npm install -g @nanocollective/nanocoder|https://github.com/Nano-Collective/nanocoder|Community-built open coding agent for your terminal"
+  "cn|npm install -g @continuedev/cli|https://continue.dev|Continue's coding agent CLI (repo is read-only, no longer maintained)"
+  "paperclipai|npm install -g paperclipai|https://github.com/paperclipai/paperclip|Paperclip: orchestrate teams of AI agents"
+  "ruflo|npm install -g ruflo|https://github.com/ruvnet/claude-flow|Ruflo: multi-agent orchestration for Claude Code and others"
+  "happy|npm install -g happy|https://happy.engineering|Mobile and web client for Claude Code and Codex sessions"
+  "paseo|npm install -g @getpaseo/cli|https://www.npmjs.com/package/@getpaseo/cli|Control your coding agents from the command line"
+  "gt|brew install gastown|https://github.com/gastownhall/gastown|Gas Town: a multi-agent workspace manager"
+  "aoe|brew install aoe|https://github.com/agent-of-empires/agent-of-empires|Agent of Empires: terminal sessions for many coding agents"
+  "ralph|npm install -g @ralph-orchestrator/ralph-cli|https://github.com/mikeyobrien/ralph-orchestrator|Ralph: runs coding agents in loops until the job is done"
+  "workmux|brew install raine/workmux/workmux|https://workmux.dev|Git worktrees plus tmux windows for parallel agents"
+  "dmux|npm install -g dmux|https://github.com/formkit/dmux|tmux panes with AI agents for parallel development"
+  "agent-deck|brew install asheshgoplani/tap/agent-deck|https://github.com/asheshgoplani/agent-deck|A terminal deck for managing your agent sessions"
+  "nanobot|uv tool install nanobot-ai|https://pypi.org/project/nanobot-ai/|Lightweight personal AI assistant"
+  "octop|uv tool install octop|https://pypi.org/project/octop/|Self-hosted AI assistant for several users and agents"
+  "openmausbot|npm install -g openmausbot|https://github.com/milind-soni/OpenMausBot|Open-source personal agent server you pair your devices with"
+  "ccmanager|npm install -g ccmanager|https://github.com/kbwo/ccmanager|Session manager for Claude Code, Codex and more in parallel worktrees, no tmux needed"
+  "omnara|npm install -g omnara|https://omnara.com|Launch and control your coding agents remotely"
+)
+
+# Agent apps: desktop (or web) tools, tracked through their app bundle and Sparkle feed.
+# name|app bundle names (comma-separated, empty for web only)|homepage|description|kind|install
+# kind: system (default), multiplexer, ade or orchestrator. An app that isn't installed shows
+# in Discover when it has an install command.
+SYSTEMS=(
+  "Rex|Rex Beta,Rex|https://superlogical.com|The multiplexer for all work: agent sessions and panes in one terminal|multiplexer|"
+  "cmux|cmux|https://www.cmux.dev|Ghostty-based terminal with vertical tabs and notifications for agents|multiplexer|brew install --cask cmux"
+  "Orca|Orca|https://onorca.dev|Run a fleet of coding agents with your own subscriptions, on desktop, mobile or remote|ade|brew install --cask stablyai/orca/orca"
+  "Conductor|Conductor|https://conductor.build|Mac app that runs Claude Code, Codex and Cursor agents in parallel worktrees|ade|brew install --cask conductor"
+  "Superset|Superset|https://superset.sh|Agent-agnostic workspace for parallel agents, local or in the cloud|ade|brew install --cask superset"
+  "Emdash|Emdash|https://www.emdash.sh|Run 20+ coding agents in parallel, each in its own worktree|ade|brew install --cask emdash"
+  "Nimbalyst|Nimbalyst|https://nimbalyst.com|Visual workspace for building with Codex and Claude Code (formerly Crystal)|ade|brew install --cask nimbalyst"
+  "Sculptor|Sculptor|https://imbue.com/sculptor|Imbue's open-source app for parallel agents with per-branch diffs|ade|brew install --cask sculptor"
+  "Warp|Warp|https://www.warp.dev|Terminal-based agentic development environment for Claude Code, Codex and Warp's agent|ade|brew install --cask warp"
+  "Kiro|Kiro|https://kiro.dev|AWS's agent-centric IDE built around specs and parallel sub-agents|ade|brew install --cask kiro"
+  "Zed|Zed,Zed Preview|https://zed.dev|Fast collaborative editor with built-in agents and external agent support|ade|brew install --cask zed"
+  "Grok Bot|Grok Bot|https://grok.com|Always-on Grok agent for your Mac"
+  "Muse|Muse|https://www.meta.ai|Meta's always-on personal agent"
+  "Claude Duet||https://claude.ai|Anthropic's proactive agent for iPhone, Android and the web"
+)
+
+# Other desktop apps that update themselves; reported, not driven.
+APPS=(
+  "Claude" "ChatGPT" "Codex" "Cursor" "Amp" "T3 Code (Nightly)" "T3 Code"
+  "Windsurf" "Antigravity" "Visual Studio Code"
+)
+
+usage() { sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; }
+
+list_only=0 assume_yes=0 update_all=0 json=0 install=0 uninstall=0 dry_run=0
+only=()
+for arg in "$@"; do
+  case "$arg" in
+    -l|--list) list_only=1 ;;
+    -y|--yes) assume_yes=1 ;;
+    -a|--all|-f|--force) update_all=1 ;;
+    -j|--json) json=1 ;;
+    -i|--install) install=1 ;;
+    --uninstall) uninstall=1 ;;
+    -n|--dry-run) dry_run=1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "unknown option: $arg" >&2; usage >&2; exit 2 ;;
+    *) only+=("$arg") ;;
+  esac
+done
+
+if [[ -t 1 ]] && ((!json)); then
+  tty=1
+  bold=$'\e[1m' dim=$'\e[2m' red=$'\e[31m' green=$'\e[32m' yellow=$'\e[33m' reset=$'\e[0m'
+  frame=$'\e[38;5;141m' accent=$'\e[38;5;117m'
+else
+  tty=0 bold='' dim='' red='' green='' yellow='' reset='' frame='' accent=''
+fi
+
+# ---- drawing --------------------------------------------------------------
+
+# Visible width of a string, ignoring color codes.
+vislen() {
+  local s
+  s=$(sed $'s/\e\\[[0-9;]*m//g' <<<"$1")
+  echo "${#s}"
+}
+
+rep() {
+  local out='' i
+  for ((i = 0; i < $2; i++)); do out+=$1; done
+  printf '%s' "$out"
+}
+
+# pad TEXT WIDTH: TEXT followed by spaces up to WIDTH visible characters.
+pad() { printf '%s%s' "$1" "$(rep ' ' $(($2 - $(vislen "$1"))))"; }
+
+# box TITLE: draw a rounded border around the lines on stdin.
+box() {
+  local title=$1 line w width tw i lines=() widths=()
+  tw=$(vislen "$title")
+  width=$((tw + 2))
+  while IFS= read -r line; do
+    w=$(vislen "$line")
+    lines+=("$line") widths+=("$w")
+    ((w > width)) && width=$w
+  done
+  printf '%s╭─ %s%s%s %s╮%s\n' "$frame" "$reset$bold" "$title" "$reset$frame" "$(rep ─ $((width + 1 - tw)))" "$reset"
+  for ((i = 0; i < ${#lines[@]}; i++)); do
+    printf '%s│%s  %s%s  %s│%s\n' "$frame" "$reset" "${lines[i]}" "$(rep ' ' $((width - widths[i])))" "$frame" "$reset"
+  done
+  printf '%s╰%s╯%s\n' "$frame" "$(rep ─ $((width + 4)))" "$reset"
+}
+
+# Overwrite the current line with a status message (no-op when not on a terminal).
+status_line() { ((tty)) && printf '\r\e[K  %s%s%s' "$dim" "$1" "$reset"; }
+clear_line() { ((tty)) && printf '\r\e[K'; }
+
+# spin LABEL LOG CMD...: run CMD with a spinner, output to LOG; returns CMD's exit status.
+spin() {
+  local label=$1 log=$2 pid i=0 frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  shift 2
+  (cd "$HOME" && exec timeout "$UPDATE_TIMEOUT" "$@") </dev/null >"$log" 2>&1 &
+  pid=$!
+  if ((tty)); then
+    while kill -0 "$pid" 2>/dev/null; do
+      printf '\r\e[K  %s%s%s %s' "$accent" "${frames:i++%10:1}" "$reset" "$label"
+      sleep 0.1
+    done
+    clear_line
+  else
+    echo "  $label"
+  fi
+  wait "$pid"
+}
+
+# wait_all LABEL: wait for every background job, with a spinner on a terminal.
+wait_all() {
+  local i=0 frames='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+  if ((tty)); then
+    while [[ -n $(jobs -pr) ]]; do
+      printf '\r\e[K  %s%s%s %s%s%s' "$accent" "${frames:i++%10:1}" "$reset" "$dim" "$1" "$reset"
+      sleep 0.1
+    done
+    clear_line
+  fi
+  wait
+}
+
+# ago EPOCH: "5m ago", "3h ago", "2d ago".
+ago() {
+  local s=$(($(date +%s) - $1))
+  if ((s < 60)); then echo "just now"
+  elif ((s < 3600)); then echo "$((s / 60))m ago"
+  elif ((s < 86400)); then echo "$((s / 3600))h ago"
+  else echo "$((s / 86400))d ago"
+  fi
+}
+
+# ---- discovery ------------------------------------------------------------
+
+# Longest version-looking token on the first line of `--version`
+# ("Muse Code 1.4.13 (1.4.13-R6996.1)" -> 1.4.13-R6996.1).
+version_of() {
+  timeout 20 "$1" --version </dev/null 2>&1 | head -1 |
+    grep -oE '[0-9]+(\.[0-9]+)+[-+.A-Za-z0-9]*' |
+    awk 'length > length(best) { best = $0 } END { print best }'
+}
+
+# Prints the package-manager command that owns this binary, if any.
+manager_update() {
+  local real rest pkg
+  real=$(realpath "$1" 2>/dev/null) || return 1
+  case "$real" in
+    */Cellar/*)   rest=${real#*/Cellar/};   echo "brew upgrade ${rest%%/*}" ;;
+    */Caskroom/*) rest=${real#*/Caskroom/}; echo "brew upgrade --cask ${rest%%/*}" ;;
+    */node_modules/*)
+      rest=${real#*/node_modules/}
+      if [[ $rest == @* ]]; then pkg=$(cut -d/ -f1-2 <<<"$rest"); else pkg=${rest%%/*}; fi
+      case "$real" in
+        */.bun/*)  echo "bun add -g $pkg@latest" ;;
+        */pnpm/*)  echo "pnpm add -g $pkg@latest" ;;
+        *)         echo "npm install -g $pkg@latest" ;;
+      esac ;;
+    */uv/tools/*)    rest=${real#*/uv/tools/};    echo "uv tool upgrade ${rest%%/*}" ;;
+    */pipx/venvs/*)  rest=${real#*/pipx/venvs/};  echo "pipx upgrade ${rest%%/*}" ;;
+    *) return 1 ;;
+  esac
+}
+
+# selected NAME [WANTED...]: true when no names were given or NAME is one of them.
+selected() {
+  local want=$1 n; shift
+  (($# == 0)) && return 0
+  for n in "$@"; do [[ $n == "$want" ]] && return 0; done
+  return 1
+}
+
+# Where the running version actually lives, for "last updated". Launchers and shims keep a
+# fixed path across updates, so point at their versioned install instead.
+install_path_of() {
+  local name=$1 bin=$2 version=$3 p='' real
+  real=$(realpath "$bin" 2>/dev/null) || real=$bin
+  case $name in
+    pi) p="$HOME/.pi/agent/install/releases/$(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null)" ;;
+    t3) p="$HOME/.t3/runtime/versions/$version" ;;
+    muse) p="$(dirname "$real")/muse-bin-$version" ;;
+  esac
+  [[ -n $p && -e $p ]] || p=$real
+  echo "$p"
+}
+
+# kind_of NAME: "orchestrator" for tools that run and coordinate other agents, "system" for
+# always-on personal agents, else "agent" (a coding harness).
+kind_of() {
+  case $1 in
+    herdr | Rex | cmux | dmux | workmux | agent-deck | aoe | claude-squad | ccmanager) echo multiplexer ;;
+    t3 | Orca | Conductor | Superset | Emdash | Nimbalyst | Sculptor | Warp | Kiro | Zed) echo ade ;;
+    vibe-kanban | paperclipai | ruflo | happy | paseo | gt | ralph | omnara) echo orchestrator ;;
+    hermes | openclaw | nanobot | octop | openmausbot) echo system ;;
+    *) echo agent ;;
+  esac
+}
+
+# icon_of NAME: prints "APP_PATH|ICON_URL" (either may be empty) for the GUI.
+icon_of() {
+  local apps='' url='' a app='' dir list=()
+  case $1 in
+    claude)       apps='Claude';               url=fav:claude.ai ;;
+    codex)        apps='Codex';                url=fav:openai.com ;;
+    amp)          apps='Amp';                  url=fav:ampcode.com ;;
+    cursor-agent) apps='Cursor';               url=fav:cursor.com ;;
+    droid)        url=fav:factory.ai ;;
+    grok)         apps='Grok Bot';             url=fav:grok.com ;;
+    pi)           url=https://github.com/earendil-works.png ;;
+    agy)          apps='Antigravity';          url=fav:antigravity.google ;;
+    muse)         apps='Muse';                 url=fav:meta.ai ;;
+    t3)           apps='T3 Code|T3 Code (Beta)|T3 Code (Nightly)'; url=https://github.com/pingdotgg.png ;;
+    herdr)        url=fav:herdr.dev ;;
+    opencode)     url=fav:opencode.ai ;;
+    goose)        url=https://github.com/block.png ;;
+    gemini)       url=fav:gemini.google.com ;;
+    qwen)         url=fav:qwen.ai ;;
+    copilot)      url=fav:github.com ;;
+    crush)        url=fav:charm.sh ;;
+    aider)        url=fav:aider.chat ;;
+    auggie)       url=fav:augmentcode.com ;;
+    kilocode)     url=fav:kilocode.ai ;;
+    cline)        url=fav:cline.bot ;;
+    claude-squad) url=https://github.com/smtg-ai.png ;;
+    vibe-kanban)  url=https://github.com/BloopAI.png ;;
+    omp)          url=fav:omp.sh ;;
+    hermes)       url=https://github.com/NousResearch.png ;;
+    openclaw)     url=https://github.com/openclaw.png ;;
+  esac
+  [[ -n $apps ]] && IFS='|' read -ra list <<<"$apps"
+  for a in ${list[@]+"${list[@]}"}; do
+    for dir in /Applications "$HOME/Applications"; do
+      [[ -z $app && -d "$dir/$a.app" ]] && app="$dir/$a.app"
+    done
+  done
+  if [[ -z $url && -n ${2:-} ]]; then
+    case $2 in
+      https://github.com/*) url="https://github.com/$(cut -d/ -f4 <<<"$2").png" ;;
+      https://pypi.org/* | https://www.npmjs.com/*) ;;
+      *) url="fav:$(cut -d/ -f3 <<<"$2")" ;;
+    esac
+  fi
+  [[ $url == fav:* ]] && url="https://www.google.com/s2/favicons?domain=${url#fav:}&sz=128"
+  echo "$app|$url"
+}
+
+# ---- latest versions --------------------------------------------------------
+
+fetch() { curl -fsSL --max-time "$CHECK_TIMEOUT" "$@" 2>/dev/null; }
+
+# GitHub API through gh when it's signed in (higher rate limit), plain curl otherwise.
+gh_json() { timeout "$CHECK_TIMEOUT" gh api "$1" </dev/null 2>/dev/null || fetch "https://api.github.com/$1"; }
+
+# latest_of NAME INSTALLED UPDATE_CMD: newest released version on the channel this install follows.
+latest_of() {
+  local name=$1 installed=$2 cmd=$3 pkg channel
+  case $cmd in
+    "brew upgrade --cask "*)
+      fetch "https://formulae.brew.sh/api/cask/${cmd##* }.json" | jq -r '.version // empty' | cut -d, -f1; return ;;
+    "brew upgrade "*)
+      fetch "https://formulae.brew.sh/api/formula/${cmd##* }.json" | jq -r '.versions.stable // empty'; return ;;
+    *" add -g "*@latest | *" install -g "*@latest)
+      pkg=${cmd##* }; pkg=${pkg%@latest}
+      fetch "https://registry.npmjs.org/${pkg/\//%2F}/latest" | jq -r '.version // empty'; return ;;
+    "uv tool upgrade "* | "pipx upgrade "*)
+      fetch "https://pypi.org/pypi/${cmd##* }/json" | jq -r '.info.version // empty'; return ;;
+  esac
+  case $name in
+    claude)
+      channel=$(jq -r '.autoUpdatesChannel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
+      fetch "https://downloads.claude.ai/claude-code-releases/${channel:-latest}" ;;
+    codex) gh_json repos/openai/codex/releases/latest | jq -r '.tag_name // empty' | sed 's/^rust-v//' ;;
+    amp) fetch https://static.ampcode.com/cli/cli-version.txt ;;
+    cursor-agent) fetch https://cursor.com/install | grep -oE 'downloads\.cursor\.com/lab/[^/]+/' | head -1 | cut -d/ -f3 ;;
+    droid) fetch https://downloads.factory.ai/factory-cli/LATEST ;;
+    grok) timeout "$CHECK_TIMEOUT" grok update --check --json </dev/null 2>/dev/null | jq -r '.latestVersion // empty' ;;
+    pi) fetch https://registry.npmjs.org/@earendil-works%2Fpi-coding-agent/latest | jq -r '.version // empty' ;;
+    agy)
+      fetch https://antigravity-cli-auto-updater-974169037036.us-central1.run.app |
+        grep -oE 'Stable Version: [0-9]+(\.[0-9]+)*' | grep -oE '[0-9.]+$' ;;
+    muse)
+      fetch -A muse-code/launcher-3 "https://api.meta.ai/muse-code/channels/${MUSE_CHANNEL:-muse-stable}" |
+        jq -r '.version // empty' ;;
+    t3)
+      case $installed in *-nightly*) channel=nightly ;; *-preview*) channel=preview ;; *) channel=stable ;; esac
+      gh_json 'repos/pingdotgg/t3code/releases?per_page=50' | jq -r --arg c "$channel" '
+        [.[] | select(.draft | not) | .tag_name | select(startswith("v"))
+          | select(if $c == "stable" then (contains("-") | not) else contains("-" + $c + ".") end)][0] // empty' |
+        sed 's/^v//' ;;
+    herdr) fetch https://herdr.dev/latest.json | jq -r '.version // empty' ;;
+    opencode) fetch https://registry.npmjs.org/opencode-ai/latest | jq -r '.version // empty' ;;
+    goose) gh_json repos/block/goose/releases/latest | jq -r '.tag_name // empty' | sed 's/^v//' ;;
+  esac
+}
+
+# catalog_latest INSTALL_CMD: newest version the install command would fetch.
+catalog_latest() {
+  case $1 in
+    "npm install -g "*) latest_of '' '' "$1@latest" ;;
+    "brew install --cask "*) latest_of '' '' "brew upgrade --cask ${1##* }" ;;
+    "brew install "*) latest_of '' '' "brew upgrade ${1##* }" ;;
+    "uv tool install "*) latest_of '' '' "uv tool upgrade $(awk '{print $4}' <<<"$1")" ;;
+  esac
+}
+
+# app_installed NAME: true when NAME is an app entry in SYSTEMS whose bundle is in Applications.
+app_installed() {
+  local entry name bundles b dir list=()
+  for entry in "${SYSTEMS[@]}"; do
+    IFS='|' read -r name bundles _ <<<"$entry"
+    [[ $name == "$1" && -n $bundles ]] || continue
+    IFS=',' read -ra list <<<"$bundles"
+    for b in "${list[@]}"; do
+      for dir in /Applications "$HOME/Applications"; do [[ -d "$dir/$b.app" ]] && return 0; done
+    done
+  done
+  return 1
+}
+
+# install_agents NAME...: install missing agents from CATALOG, one at a time.
+install_agents() {
+  local want entry name cmd home desc found todo=() cmds=() n=0 failed=0 rc log logdir
+  (($#)) || { echo "Name the agents to install, e.g. update-agents --install opencode" >&2; return 2; }
+  for want in "$@"; do
+    found=''
+    for entry in "${CATALOG[@]}"; do
+      IFS='|' read -r name cmd home desc <<<"$entry"
+      [[ $name == "$want" ]] && found=${cmd//¦/|}
+    done
+    for entry in "${SYSTEMS[@]}"; do
+      IFS='|' read -r name _ _ _ _ cmd <<<"$entry"
+      [[ $name == "$want" && -n $cmd ]] && found=$cmd
+    done
+    if command -v "$want" >/dev/null || app_installed "$want"; then
+      echo "  ${dim}·${reset} $want is already installed"
+    elif [[ -z $found ]]; then
+      echo "  ${red}✗${reset} $want isn't in the install list" >&2; failed=$((failed + 1))
+    else
+      todo+=("$want") cmds+=("$found")
+    fi
+  done
+  ((${#todo[@]})) || return $((failed > 0))
+  if ((dry_run)); then
+    for ((n = 0; n < ${#todo[@]}; n++)); do echo "cmd:${cmds[n]}"; done
+    return $((failed > 0))
+  fi
+  if ((!assume_yes)); then
+    printf '%s?%s %sInstall %s?%s %s[Y/n]%s ' "$accent" "$reset" "$bold" "$(sed 's/ /, /g' <<<"${todo[*]}")" "$reset" "$dim" "$reset"
+    read -r reply || reply=n
+    case "${reply:-y}" in [Yy]*) ;; *) echo "Nothing installed."; return 0 ;; esac
+  fi
+  logdir="${TMPDIR:-/tmp}"; logdir="${logdir%/}/update-agents-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$logdir"
+  for ((n = 0; n < ${#todo[@]}; n++)); do
+    log="$logdir/${todo[n]}.log"
+    if [[ ${cmds[n]} == *"|"* ]]; then
+      # A vendor install script (curl … | sh) needs a shell for the pipe.
+      spin "${dim}[$((n + 1))/${#todo[@]}]${reset} installing ${bold}${todo[n]}${reset} ${dim}${cmds[n]}${reset}" "$log" bash -c "${cmds[n]}"
+    else
+      # shellcheck disable=SC2086 # the command string is meant to split into words
+      spin "${dim}[$((n + 1))/${#todo[@]}]${reset} installing ${bold}${todo[n]}${reset} ${dim}${cmds[n]}${reset}" "$log" ${cmds[n]}
+    fi
+    rc=$?
+    hash -r
+    if ((rc == 0)) && app_installed "${todo[n]}"; then
+      echo "  ${green}✓${reset} ${todo[n]} (app)"
+    elif ((rc == 0)) && command -v "${todo[n]}" >/dev/null; then
+      echo "  ${green}✓${reset} ${todo[n]} $(version_of "$(command -v "${todo[n]}")")"
+    else
+      echo "  ${red}✗${reset} ${todo[n]}: $(grep -v '^[[:space:]]*$' "$log" | tail -1 | cut -c1-100)"
+      failed=$((failed + 1))
+    fi
+  done
+  echo "  ${dim}Logs: $logdir${reset}"
+  ((failed == 0))
+}
+
+# appcast_latest FEED: "BUILD SHORT_VERSION" of the newest item in a Sparkle appcast.
+appcast_latest() {
+  fetch "$1" | awk '
+    /sparkle:version>/ { v = $0; gsub(/.*<sparkle:version>|<\/sparkle:version>.*/, "", v) }
+    /sparkle:version="/ { v = $0; sub(/.*sparkle:version="/, "", v); sub(/".*/, "", v) }
+    /sparkle:shortVersionString>/ { s = $0; gsub(/.*<sparkle:shortVersionString>|<\/sparkle:shortVersionString>.*/, "", s) }
+    /sparkle:shortVersionString="/ { s = $0; sub(/.*sparkle:shortVersionString="/, "", s); sub(/".*/, "", s) }
+    /<\/item>/ { if (v != "") print v, (s == "" ? v : s); v = ""; s = "" }' | sort -V -k1,1 | tail -1
+}
+
+# uninstall_plan NAME: what uninstalling NAME means, one line each: "cmd:COMMAND" for a
+# package-manager install, "path:PATH" for program files to move to the Trash. Config and
+# history directories (~/.claude, ~/.codex sessions, ...) are never on the list.
+uninstall_plan() {
+  local name=$1 bin cmd pkg p entry sname bundles L=$HOME/.local/bin paths=() b dir
+  # Agent system apps go to the Trash whole.
+  for entry in "${SYSTEMS[@]}"; do
+    IFS='|' read -r sname bundles _ <<<"$entry"
+    [[ $sname == "$name" ]] || continue
+    IFS=',' read -ra paths <<<"$bundles"
+    for b in ${paths[@]+"${paths[@]}"}; do
+      for dir in /Applications "$HOME/Applications"; do
+        [[ -d "$dir/$b.app" ]] && echo "path:$dir/$b.app" && return 0
+      done
+    done
+    return 1
+  done
+  bin=$(command -v "$name") || return 1
+  if cmd=$(manager_update "$bin"); then
+    pkg=${cmd##* }; pkg=${pkg%@latest}
+    case $cmd in
+      "brew upgrade --cask "*) echo "cmd:brew uninstall --cask $pkg" ;;
+      "brew upgrade "*) echo "cmd:brew uninstall $pkg" ;;
+      "npm install -g "*) echo "cmd:npm uninstall -g $pkg" ;;
+      "bun add -g "*) echo "cmd:bun remove -g $pkg" ;;
+      "pnpm add -g "*) echo "cmd:pnpm remove -g $pkg" ;;
+      "uv tool upgrade "*) echo "cmd:uv tool uninstall $pkg" ;;
+      "pipx upgrade "*) echo "cmd:pipx uninstall $pkg" ;;
+    esac
+    return 0
+  fi
+  case $name in
+    claude) paths=("$L/claude" "$HOME/.local/share/claude") ;;
+    codex) paths=("$L/codex" "$L/codex-code-mode-host" "$HOME/.codex/packages/standalone") ;;
+    amp) paths=("$L/amp" "$HOME/.amp/bin") ;;
+    cursor-agent)
+      paths=("$L/cursor-agent" "$HOME/.local/share/cursor-agent")
+      [[ $(readlink "$L/agent" 2>/dev/null) == *cursor-agent* ]] && paths+=("$L/agent") ;;
+    droid) paths=("$L/droid") ;;
+    grok) paths=("$L/grok" "$HOME/.grok/bin" "$HOME/.grok/downloads") ;;
+    pi) paths=("$L/pi" "$HOME/.pi/agent/bin" "$HOME/.pi/agent/install" "$HOME/.local/share/pi-node") ;;
+    agy) paths=("$L/agy" "$L"/agy.*.old) ;;
+    muse) paths=("$L/muse" "$L"/muse-bin-* "$L"/.muse-*) ;;
+    t3) paths=("$HOME/.t3/bin/t3") ;;
+    herdr) paths=("$L/herdr") ;;
+    goose) paths=("$L/goose") ;;
+    *) return 1 ;;
+  esac
+  for p in "${paths[@]}"; do [[ -e $p || -L $p ]] && echo "path:$p"; done
+  return 0
+}
+
+# uninstall_agents NAME...: remove agents (Trash for program files, package manager otherwise).
+uninstall_agents() {
+  local name plan line trash dest rc failed=0 log
+  (($#)) || { echo "Name the agents to uninstall, e.g. update-agents --uninstall amp" >&2; return 2; }
+  for name in "$@"; do
+    if ! plan=$(uninstall_plan "$name") || [[ -z $plan ]]; then
+      if ((dry_run)); then echo "error:don't know how to uninstall $name"
+      else echo "  ${red}✗${reset} $name: not installed, or I don't know how it was installed" >&2; fi
+      failed=$((failed + 1)); continue
+    fi
+    if ((dry_run)); then echo "$plan"; continue; fi
+    echo "${bold}$name${reset}"
+    while IFS= read -r line; do
+      case $line in cmd:*) echo "  ${dim}run${reset} ${line#cmd:}" ;; path:*) echo "  ${dim}move to Trash${reset} ${line#path:}" ;; esac
+    done <<<"$plan"
+    if ((!assume_yes)); then
+      printf '%s?%s %sUninstall %s?%s %s[y/N]%s ' "$accent" "$reset" "$bold" "$name" "$reset" "$dim" "$reset"
+      read -r reply || reply=n
+      case $reply in [Yy]*) ;; *) echo "  Skipped $name."; continue ;; esac
+    fi
+    trash="$HOME/.Trash/$name (update-agents $(date "+%Y-%m-%d %H.%M.%S"))"
+    rc=0
+    while IFS= read -r line; do
+      case $line in
+        cmd:*)
+          log=$(mktemp "${TMPDIR:-/tmp}/update-agents-uninstall.XXXXXX")
+          # shellcheck disable=SC2086 # the command string is meant to split into words
+          spin "uninstalling ${bold}$name${reset} ${dim}${line#cmd:}${reset}" "$log" ${line#cmd:} || {
+            rc=1; echo "  ${red}✗${reset} $(grep -v '^[[:space:]]*$' "$log" | tail -1 | cut -c1-100)"; } ;;
+        path:*)
+          # Keep each file's place under the home folder so the Trash copy is easy to put back.
+          dest="$trash${line#path:$HOME}"
+          [[ ${line#path:} == "$HOME"/* ]] || dest="$trash/$(basename "${line#path:}")"
+          mkdir -p "$(dirname "$dest")" && mv "${line#path:}" "$dest" || rc=1 ;;
+      esac
+    done <<<"$plan"
+    hash -r
+    if ((rc == 0)); then
+      echo "  ${green}✓${reset} uninstalled $name"
+      [[ -d $trash ]] && echo "  ${dim}files are in the Trash: $trash${reset}"
+      command -v "$name" >/dev/null && echo "  ${yellow}!${reset} another $name is still on PATH: $(command -v "$name")"
+    else
+      failed=$((failed + 1))
+    fi
+  done
+  ((failed == 0))
+}
+
+# version_status INSTALLED LATEST: current | behind | ahead | unknown.
+version_status() {
+  local a=${1#v} b=${2#v} ca cb
+  [[ -z $a || $a == '?' || -z $b ]] && { echo unknown; return; }
+  [[ $a == "$b" ]] && { echo current; return; }
+  ca=$(grep -oE '^[0-9]+(\.[0-9]+)*' <<<"$a")
+  cb=$(grep -oE '^[0-9]+(\.[0-9]+)*' <<<"$b")
+  [[ -z $ca || -z $cb ]] && { echo unknown; return; }
+  if [[ $ca != "$cb" ]]; then
+    [[ $(printf '%s\n%s\n' "$ca" "$cb" | sort -V | tail -1) == "$cb" ]] && echo behind || echo ahead
+  elif [[ $a != *-* && $b == *-* ]]; then
+    echo ahead # a release is newer than a prerelease of the same version
+  else
+    echo behind # same version, different build: trust the release feed
+  fi
+}
+
+show_apps() {
+  local name app plist short build feed latest names=() versions=() states=() nw=0 vw=0 i
+  for name in "${APPS[@]}"; do
+    for app in "/Applications/$name.app" "$HOME/Applications/$name.app"; do
+      [[ -d $app ]] || continue
+      status_line "checking ${name}…"
+      plist="$app/Contents/Info.plist"
+      short=$(defaults read "$plist" CFBundleShortVersionString 2>/dev/null)
+      build=$(defaults read "$plist" CFBundleVersion 2>/dev/null)
+      feed=$(defaults read "$plist" SUFeedURL 2>/dev/null)
+      state="${dim}updates itself${reset}"
+      if [[ -n $feed ]]; then
+        latest=$(appcast_latest "$feed" | cut -d' ' -f1)
+        if [[ -z $latest ]]; then
+          state="${yellow}update feed unreachable${reset}"
+        elif [[ $latest == "$build" ]]; then
+          state="${green}up to date${reset}"
+        else
+          state="${yellow}update ready ($build → $latest): open the app${reset}"
+        fi
+      fi
+      names+=("$name") versions+=("${short:-?}") states+=("$state")
+      ((${#name} > nw)) && nw=${#name}
+      ((${#short} > vw)) && vw=${#short}
+    done
+  done
+  clear_line
+  ((${#names[@]})) || return 0
+  echo
+  {
+    printf '%s%-*s  %-*s  %s%s\n' "$dim" "$nw" "app" "$vw" "version" "status" "$reset"
+    for ((i = 0; i < ${#names[@]}; i++)); do
+      printf '%-*s  %-*s  %s\n' "$nw" "${names[i]}" "$vw" "${versions[i]}" "${states[i]}"
+    done
+  } | box "Desktop apps"
+}
+
+# ---- main -----------------------------------------------------------------
+
+checkdir=$(mktemp -d "${TMPDIR:-/tmp}/update-agents-check.XXXXXX")
+trap 'rm -rf "$checkdir"' EXIT
+trap 'clear_line; kill $(jobs -p) 2>/dev/null; echo "Interrupted."; exit 130' INT
+
+if ((install)); then
+  install_agents ${only[@]+"${only[@]}"}
+  exit $?
+fi
+if ((uninstall)); then
+  uninstall_agents ${only[@]+"${only[@]}"}
+  exit $?
+fi
+
+# Agent systems: find each app and check its Sparkle feed in the background.
+sys_names=() sys_apps=() sys_homes=() sys_descs=() sys_short=() sys_build=() sys_feed=() sys_mtime=() sys_kinds=()
+sys_avail=()
+if ((${#only[@]} == 0)); then
+  for entry in "${SYSTEMS[@]}"; do
+    IFS='|' read -r name bundles home desc skind sinstall <<<"$entry"
+    app='' list=()
+    [[ -n $bundles ]] && IFS=',' read -ra list <<<"$bundles"
+    for b in ${list[@]+"${list[@]}"}; do
+      for dir in /Applications "$HOME/Applications"; do
+        [[ -z $app && -d "$dir/$b.app" ]] && app="$dir/$b.app"
+      done
+    done
+    if [[ -n $bundles && -z $app ]]; then
+      # Not installed: offer it in Discover if we know how to install it.
+      [[ -n $sinstall ]] && sys_avail+=("$name|$sinstall|$home|$desc")
+      continue
+    fi
+    short='' build='' feed='' mtime=0
+    if [[ -n $app ]]; then
+      short=$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null)
+      build=$(defaults read "$app/Contents/Info.plist" CFBundleVersion 2>/dev/null)
+      feed=$(defaults read "$app/Contents/Info.plist" SUFeedURL 2>/dev/null)
+      mtime=$(stat -f %m "$app/Contents/Info.plist" 2>/dev/null || echo 0)
+      k=${#sys_names[@]}
+      [[ -n $feed ]] && (appcast_latest "$feed" >"$checkdir/sys.$k") &
+    fi
+    sys_names+=("$name") sys_apps+=("$app") sys_homes+=("$home") sys_descs+=("$desc") sys_kinds+=("${skind:-system}")
+    sys_short+=("$short") sys_build+=("$build") sys_feed+=("$feed") sys_mtime+=("$mtime")
+  done
+fi
+
+# Popular agents that aren't installed, for --list and --json; their lookups run in the background.
+avail=()
+if ((json || list_only)) && ((${#only[@]} == 0)); then
+  for entry in "${CATALOG[@]}"; do
+    IFS='|' read -r name _ <<<"$entry"
+    command -v "$name" >/dev/null && continue
+    k=${#avail[@]}
+    (catalog_latest "$(cut -d'|' -f2 <<<"$entry")" | head -1 | tr -d '[:space:]' >"$checkdir/avail.$k") &
+    avail+=("$entry")
+  done
+  for entry in ${sys_avail[@]+"${sys_avail[@]}"}; do
+    k=${#avail[@]}
+    (catalog_latest "$(cut -d'|' -f2 <<<"$entry")" | head -1 | tr -d '[:space:]' >"$checkdir/avail.$k") &
+    avail+=("$entry")
+  done
+fi
+
+names=() bins=() cmds=() labels=() befores=()
+for entry in "${AGENTS[@]}"; do
+  IFS='|' read -r name self_cmd label <<<"$entry"
+  selected "$name" ${only[@]+"${only[@]}"} || continue
+  bin=$(command -v "$name") || continue
+  status_line "looking at ${name}…"
+  if cmd=$(manager_update "$bin"); then label=$cmd; else cmd=$self_cmd label=${label:-$cmd}; fi
+  before=$(version_of "$bin")
+  i=${#names[@]}
+  # Look up the latest release in the background while the next agent's --version runs.
+  (latest_of "$name" "$before" "$cmd" | head -1 | tr -d '[:space:]' >"$checkdir/$i") &
+  names+=("$name") bins+=("$bin") cmds+=("$cmd") labels+=("$label") befores+=("${before:-?}")
+done
+wait_all "checking for newer versions…"
+
+if ((${#names[@]} == 0)); then
+  ((json)) && { echo '{"agents":[],"available":[]}'; exit 0; }
+  echo "No matching agent CLIs found." >&2
+  exit 1
+fi
+
+latests=() statuses=() paths=() mtimes=() kinds=() todo=() unknown=() behind=0
+for ((i = 0; i < ${#names[@]}; i++)); do
+  latest=$(cat "$checkdir/$i" 2>/dev/null)
+  [[ $latest =~ ^v?[0-9] ]] || latest=''
+  latest=${latest#v}
+  status=$(version_status "${befores[i]}" "$latest")
+  path=$(install_path_of "${names[i]}" "${bins[i]}" "${befores[i]}")
+  latests+=("$latest") statuses+=("$status") paths+=("$path") kinds+=("$(kind_of "${names[i]}")")
+  mtimes+=("$(stat -f %m "$path" 2>/dev/null || echo 0)")
+  [[ $status == behind ]] && behind=$((behind + 1))
+  [[ -z ${cmds[i]} ]] && continue
+  if ((update_all)) || [[ $status == behind ]]; then todo+=("$i"); fi
+  [[ $status == unknown ]] && unknown+=("${names[i]}")
+done
+
+# Agent system status: web (no Mac app), self (updates itself, no feed to check), or the
+# feed comparison (current / behind / ahead / unknown).
+sys_lbuild=() sys_lshort=() sys_status=()
+for ((k = 0; k < ${#sys_names[@]}; k++)); do
+  lb='' ls=''
+  read -r lb ls <<<"$(cat "$checkdir/sys.$k" 2>/dev/null)"
+  if [[ -z ${sys_apps[k]} ]]; then st=web
+  elif [[ -z ${sys_feed[k]} ]]; then st=self
+  else st=$(version_status "${sys_build[k]}" "$lb")
+  fi
+  sys_lbuild+=("$lb") sys_lshort+=("$ls") sys_status+=("$st")
+done
+
+if ((json)); then
+  for ((i = 0; i < ${#names[@]}; i++)); do
+    IFS='|' read -r app icon_url <<<"$(icon_of "${names[i]}")"
+    updated=''
+    ((mtimes[i] > 0)) && updated=$(date -u -r "${mtimes[i]}" +%Y-%m-%dT%H:%M:%SZ)
+    jq -nc --arg name "${names[i]}" --arg installed "${befores[i]}" --arg latest "${latests[i]}" \
+      --arg status "${statuses[i]}" --arg updater "${labels[i]}" --arg bin "${bins[i]}" \
+      --arg path "${paths[i]}" --arg updated "$updated" --arg app "$app" --arg icon "$icon_url" \
+      --arg kind "${kinds[i]}" '
+      def nn: if . == "" or . == "?" then null else . end;
+      { name: $name, kind: $kind, installed: ($installed | nn), latest: ($latest | nn), status: $status,
+        updater: ($updater | nn), bin: $bin, install_path: $path, last_updated: ($updated | nn),
+        app: ($app | nn), icon_url: ($icon | nn) }'
+  done >"$checkdir/agents.jsonl"
+  for ((k = 0; k < ${#avail[@]}; k++)); do
+    IFS='|' read -r name cmd home desc <<<"${avail[k]}"
+    cmd=${cmd//¦/|}
+    IFS='|' read -r app icon_url <<<"$(icon_of "$name" "$home")"
+    jq -nc --arg name "$name" --arg install "$cmd" --arg home "$home" --arg desc "$desc" \
+      --arg latest "$(cat "$checkdir/avail.$k" 2>/dev/null)" --arg icon "$icon_url" --arg kind "$(kind_of "$name")" '
+      { name: $name, kind: $kind, description: $desc, homepage: $home, install: $install,
+        latest: (if $latest == "" then null else $latest end), icon_url: (if $icon == "" then null else $icon end) }'
+  done >"$checkdir/avail.jsonl"
+  for ((k = 0; k < ${#sys_names[@]}; k++)); do
+    updated=''
+    ((sys_mtime[k] > 0)) && updated=$(date -u -r "${sys_mtime[k]}" +%Y-%m-%dT%H:%M:%SZ)
+    jq -nc --arg name "${sys_names[k]}" --arg app "${sys_apps[k]}" --arg home "${sys_homes[k]}" \
+      --arg desc "${sys_descs[k]}" --arg installed "${sys_short[k]}" --arg build "${sys_build[k]}" \
+      --arg latest "${sys_lshort[k]}" --arg lbuild "${sys_lbuild[k]}" --arg status "${sys_status[k]}" \
+      --arg updated "$updated" --arg icon "https://www.google.com/s2/favicons?domain=${sys_homes[k]#https://}&sz=128" \
+      --arg kind "${sys_kinds[k]}" '
+      def nn: if . == "" then null else . end;
+      { name: $name, kind: $kind, description: $desc, homepage: $home, app: ($app | nn), status: $status,
+        installed: ($installed | nn), build: ($build | nn), latest: ($latest | nn), latest_build: ($lbuild | nn),
+        last_updated: ($updated | nn), icon_url: $icon }'
+  done >"$checkdir/systems.jsonl"
+  platforms='{}'
+  [[ -r $PLATFORMS_FILE ]] && platforms=$(cat "$PLATFORMS_FILE")
+  jq -n --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson os "$platforms" \
+    --slurpfile agents "$checkdir/agents.jsonl" --slurpfile available "$checkdir/avail.jsonl" \
+    --slurpfile systems "$checkdir/systems.jsonl" '
+    def os: . + { platforms: ($os[.name].platforms // null), platform_note: ($os[.name].note // null) };
+    { checked_at: $now, agents: ($agents | map(os)), systems: ($systems | map(os)), available: ($available | map(os)) }'
+  exit 0
+fi
+
+# ---- table ----------------------------------------------------------------
+
+nw=5 iw=9 lw=6 uw=7
+for ((i = 0; i < ${#names[@]}; i++)); do
+  ((${#names[i]} > nw)) && nw=${#names[i]}
+  ((${#befores[i]} > iw)) && iw=${#befores[i]}
+  ((${#latests[i]} > lw)) && lw=${#latests[i]}
+done
+
+# agent_table KIND TITLE: one box for the agents of that kind (skipped when there are none).
+agent_table() {
+  local kind=$1 title=$2 i count=0 late=0 installed latest updated state
+  for ((i = 0; i < ${#names[@]}; i++)); do
+    [[ ${kinds[i]} == "$kind" ]] || continue
+    count=$((count + 1))
+    [[ ${statuses[i]} == behind ]] && late=$((late + 1))
+  done
+  ((count)) || return 0
+  {
+    printf '%s%s  %s  %s  %s  %s' "$dim" "$(pad name "$nw")" "$(pad installed "$iw")" "$(pad latest "$lw")" "$(pad updated "$uw")" "$(pad status 20)"
+    ((list_only)) && printf '  updates with'
+    printf '%s\n' "$reset"
+    for ((i = 0; i < ${#names[@]}; i++)); do
+      [[ ${kinds[i]} == "$kind" ]] || continue
+      installed=${befores[i]} latest=${latests[i]:-?} updated='?'
+      ((mtimes[i] > 0)) && updated=$(ago "${mtimes[i]}")
+      case ${statuses[i]} in
+        current) state="${green}✓ up to date${reset}"; latest="$dim$latest$reset" ;;
+        behind)  state="${yellow}↑ update available${reset}"; installed="$yellow$installed$reset"; latest="$bold$green$latest$reset" ;;
+        ahead)   state="${green}✓ ahead of release${reset}"; latest="$dim$latest$reset" ;;
+        *)       state="${dim}? couldn't check${reset}" ;;
+      esac
+      [[ -z ${cmds[i]} ]] && state+=" ${dim}· no updater${reset}"
+      printf '%s  %s  %s  %s%s%s  %s' "$(pad "${names[i]}" "$nw")" "$(pad "$installed" "$iw")" "$(pad "$latest" "$lw")" \
+        "$dim" "$(pad "$updated" "$uw")" "$reset" "$(pad "$state" 20)"
+      ((list_only)) && printf '  %s%s%s' "$dim" "${labels[i]:-no known updater}" "$reset"
+      printf '\n'
+    done
+  } | if ((late)); then box "$title · $count · $late behind"; else box "$title · $count · all current"; fi
+}
+
+agent_table agent "Coding agents"
+agent_table ade "ADEs"
+agent_table multiplexer "Multiplexers"
+agent_table orchestrator "Orchestrators"
+agent_table system "Agent systems"
+
+if ((${#sys_names[@]})); then
+  sw=4 svw=9
+  for ((k = 0; k < ${#sys_names[@]}; k++)); do
+    ((${#sys_names[k]} > sw)) && sw=${#sys_names[k]}
+    ((${#sys_short[k]} > svw)) && svw=${#sys_short[k]}
+  done
+  late=0
+  {
+    printf '%s%s  %s  %s  %s  %s%s\n' "$dim" "$(pad name "$sw")" "$(pad installed "$svw")" "$(pad latest "$svw")" "$(pad updated "$uw")" "status" "$reset"
+    for ((k = 0; k < ${#sys_names[@]}; k++)); do
+      installed=${sys_short[k]:-—} latest=${sys_lshort[k]:-—} updated='—'
+      ((sys_mtime[k] > 0)) && updated=$(ago "${sys_mtime[k]}")
+      case ${sys_status[k]} in
+        current) state="${green}✓ up to date${reset}"; latest="$dim$latest$reset" ;;
+        behind)  state="${yellow}↑ update ready: open the app${reset}"; installed="$yellow$installed$reset"; latest="$bold$green$latest$reset"; late=$((late + 1)) ;;
+        ahead)   state="${green}✓ ahead of release${reset}" ;;
+        self)    state="${dim}updates itself${reset}" ;;
+        web)     state="${dim}web & mobile · ${sys_homes[k]#https://}${reset}" ;;
+        *)       state="${dim}? couldn't check${reset}" ;;
+      esac
+      printf '%s  %s  %s  %s%s%s  %s\n' "$(pad "${sys_names[k]}" "$sw")" "$(pad "$installed" "$svw")" "$(pad "$latest" "$svw")" \
+        "$dim" "$(pad "$updated" "$uw")" "$reset" "$state"
+    done
+  } | if ((late)); then box "Agent apps · ${#sys_names[@]} · $late behind"; else box "Agent apps · ${#sys_names[@]}"; fi
+fi
+
+((${#only[@]})) || show_apps
+if ((list_only && ${#avail[@]})); then
+  echo
+  aw=4 vw=6 cw=7
+  for entry in "${avail[@]}"; do
+    IFS='|' read -r name cmd _ <<<"$entry"
+    cmd=${cmd//¦/|}
+    ((${#name} > aw)) && aw=${#name}
+    ((${#cmd} > cw)) && cw=${#cmd}
+  done
+  for ((k = 0; k < ${#avail[@]}; k++)); do
+    v=$(cat "$checkdir/avail.$k" 2>/dev/null)
+    ((${#v} > vw)) && vw=${#v}
+  done
+  {
+    printf '%s%-*s  %-12s  %-*s  %-13s  %-*s  %s%s\n' "$dim" "$aw" "name" "kind" "$vw" "latest" "runs on" "$cw" "install with" "about" "$reset"
+    for ((k = 0; k < ${#avail[@]}; k++)); do
+      IFS='|' read -r name cmd _ desc <<<"${avail[k]}"
+      cmd=${cmd//¦/|}
+      v=$(cat "$checkdir/avail.$k" 2>/dev/null)
+      os=$(jq -r --arg n "$name" '(.[$n].platforms // []) | map({macos:"mac",linux:"linux",windows:"win",ios:"ios",android:"android",web:"web"}[.]) | join(" ")' "$PLATFORMS_FILE" 2>/dev/null)
+      printf '%-*s  %-12s  %-*s  %-13s  %s%-*s%s  %s%s%s\n' "$aw" "$name" "$(kind_of "$name")" "$vw" "${v:-?}" "${os:-?}" "$dim" "$cw" "$cmd" "$reset" "$dim" "$desc" "$reset"
+    done
+  } | box "Not installed · update-agents --install NAME"
+fi
+((list_only)) && exit 0
+
+if ((${#unknown[@]} && !update_all)); then
+  echo "  ${dim}Couldn't check ${unknown[*]}. Update anyway: update-agents --all ${unknown[*]}${reset}"
+fi
+
+if ((${#todo[@]} == 0)); then
+  echo "  ${green}✓${reset} Nothing to update."
+  exit 0
+fi
+
+todo_names=()
+for i in "${todo[@]}"; do todo_names+=("${names[i]}"); done
+if ((!assume_yes)); then
+  ((${#todo[@]} == 1)) && noun=agent || noun=agents
+  printf '\n%s?%s %sUpdate %d %s%s %s(%s)%s %s[Y/n]%s ' "$accent" "$reset" "$bold" "${#todo[@]}" "$noun" "$reset" \
+    "$dim" "$(sed 's/ /, /g' <<<"${todo_names[*]}")" "$reset" "$dim" "$reset"
+  read -r reply || reply=n
+  [[ -t 0 ]] || echo
+  case "${reply:-y}" in
+    [Yy]*) ;;
+    *) echo "Nothing updated."; exit 0 ;;
+  esac
+fi
+echo
+
+logdir="${TMPDIR:-/tmp}"; logdir="${logdir%/}/update-agents-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$logdir"
+
+rnames=() icons=() vers=() states=() notes=() updated=0 failed=0 n=0 cw=0
+for i in "${todo[@]}"; do
+  name=${names[i]} before=${befores[i]} cmd=${cmds[i]} latest=${latests[i]}
+  n=$((n + 1))
+  log="$logdir/$name.log"
+  # shellcheck disable=SC2086 # the command string is meant to split into words
+  spin "${dim}[$n/${#todo[@]}]${reset} updating ${bold}$name${reset} ${dim}${labels[i]}${reset}" "$log" $cmd
+  rc=$?
+  hash -r
+  after=$(version_of "$(command -v "$name" || echo "${bins[i]}")")
+  after=${after:-?}
+  # Some updaters stage the new version and leave the old one running ("Updating A → B").
+  target=$(grep -oE '(→|->) *v?[0-9]+(\.[0-9]+)+[-+.A-Za-z0-9]*' "$log" | tail -1 |
+    grep -oE '[0-9]+(\.[0-9]+)+[-+.A-Za-z0-9]*')
+
+  rnames+=("$name")
+  if ((rc != 0)); then
+    ((rc == 124)) && state="timed out after ${UPDATE_TIMEOUT}s" || state="failed (exit $rc)"
+    icons+=("${red}✗${reset}") vers+=("$before") states+=("${red}$state${reset}")
+    notes+=("${red}✗${reset} $name: $(grep -v '^[[:space:]]*$' "$log" | tail -1 | sed 's/^[[:space:]]*//' | cut -c1-100)")
+    failed=$((failed + 1))
+  elif [[ $before != "$after" ]]; then
+    icons+=("${green}✓${reset}") vers+=("$before → ${green}$after${reset}") states+=("${green}updated${reset}")
+    updated=$((updated + 1))
+  elif [[ -n $target && $target != "$after" ]]; then
+    icons+=("${yellow}↻${reset}") vers+=("$before → ${yellow}$target${reset}") states+=("${yellow}restart to finish${reset}")
+    notes+=("${yellow}↻${reset} $name: $(grep -i 'restart' "$log" | tail -1 | sed 's/^[[:space:]]*//' | cut -c1-100)")
+    updated=$((updated + 1))
+  elif [[ ${statuses[i]} == behind ]]; then
+    icons+=("${yellow}!${reset}") vers+=("$before") states+=("${yellow}unchanged (latest is $latest)${reset}")
+    notes+=("${yellow}!${reset} $name: updater finished but the version didn't change; see $log")
+    failed=$((failed + 1))
+  else
+    icons+=("${dim}·${reset}") vers+=("$before") states+=("${dim}up to date${reset}")
+  fi
+done
+
+widths=()
+for ((k = 0; k < ${#rnames[@]}; k++)); do
+  widths+=("$(vislen "${vers[k]}")")
+  ((widths[k] > cw)) && cw=${widths[k]}
+done
+{
+  for ((k = 0; k < ${#rnames[@]}; k++)); do
+    printf '%s %-*s  %s%s  %s\n' "${icons[k]}" "$nw" "${rnames[k]}" "${vers[k]}" "$(rep ' ' $((cw - widths[k])))" "${states[k]}"
+  done
+} | if ((updated + failed)); then box "Results · $updated updated, $failed failed"; else box "Results · all up to date"; fi
+
+for note in ${notes[@]+"${notes[@]}"}; do echo "  $note"; done
+((updated)) && echo "  ${dim}Restart running agent sessions to use the new versions.${reset}"
+echo "  ${dim}Logs: $logdir${reset}"
+((failed == 0))

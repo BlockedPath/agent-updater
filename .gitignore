@@ -1,0 +1,15 @@
+.build/
+dist/
+.swiftpm/
+.DS_Store
+# Review renders and working notes (the scripts and fixture stay)
+review/shots/
+review/live/
+review/qa/
+review/v1-src/
+review/baseline-batch1/
+review/icon/
+review/*.md
+review/*.patch
+review/platform-tools.txt
+review/platforms.json
