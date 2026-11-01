@@ -267,9 +267,38 @@ private struct AdvancedSettings: View {
             try FileManager.default.createSymbolicLink(atPath: link.path, withDestinationPath: bundled)
             cliInstalled = true
             store.showToast("Installed update-agents in ~/.local/bin")
+            Task { await checkPath() }
         } catch {
             store.showToast("Couldn't install the command: \(error.localizedDescription)",
                             symbol: "exclamationmark.triangle.fill", isError: true)
+        }
+    }
+
+    /// Whether a new Terminal window has ~/.local/bin on PATH. nil until the login shell answers,
+    /// or if it can't be read, so no warning flickers in.
+    @State private var onPath: Bool?
+    @State private var startupFile: URL?
+    @State private var pathNote: String?
+
+    private func checkPath() async {
+        guard let shell = await TerminalPath.read() else { onPath = nil; return }
+        onPath = TerminalPath.path(shell.path, contains: TerminalPath.binDirectory)
+        startupFile = TerminalPath.startupFile(zdotdir: shell.zdotdir)
+    }
+
+    private func addToPath(_ file: URL) {
+        let name = file.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+        do {
+            try TerminalPath.addFix(to: file)
+        } catch {
+            pathNote = "Couldn't write to \(name): \(error.localizedDescription)"
+            return
+        }
+        Task {
+            await checkPath()
+            pathNote = onPath == true
+                ? "Added to \(name). Open a new Terminal window to use update-agents."
+                : "Added to \(name), but a new shell still can't see ~/.local/bin. Check that file."
         }
     }
 
@@ -288,6 +317,35 @@ private struct AdvancedSettings: View {
                         Button("Install Command-Line Tool") { installCLI(from: bundled) }
                             .help("Links ~/.local/bin/update-agents to the copy inside this app")
                     }
+                }
+                if cliInstalled, onPath == false {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label {
+                            Text("Terminal can't find update-agents: ~/.local/bin isn't on your PATH.")
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.warning)
+                        }
+                        .font(.caption)
+                        HStack {
+                            Text(TerminalPath.fixLine())
+                                .font(.system(.caption, design: .monospaced))
+                                .textSelection(.enabled)
+                            Spacer()
+                            if let file = startupFile {
+                                Button("Add to \(file.lastPathComponent)") { addToPath(file) }
+                                    .help("Appends this line to \(file.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))")
+                            } else {
+                                Button("Copy") {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(TerminalPath.fixLine(), forType: .string)
+                                }
+                                .help("Copies the line to add to your shell's startup file")
+                            }
+                        }
+                    }
+                }
+                if let pathNote {
+                    Text(pathNote).font(.caption).foregroundStyle(.secondary)
                 }
                 HStack {
                     Button("Reveal in Finder") {
@@ -310,6 +368,7 @@ private struct AdvancedSettings: View {
             }
         }
         .formStyle(.grouped)
+        .task { if cliInstalled { await checkPath() } }
         .confirmationDialog("Reset all Agent Updater settings?", isPresented: $confirmReset) {
             Button("Reset", role: .destructive) {
                 if let domain = Bundle.main.bundleIdentifier {

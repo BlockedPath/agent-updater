@@ -62,8 +62,10 @@ An app you build yourself isn't quarantined, so macOS opens it without a warning
 ## Command line
 
 The app bundles the `update-agents` script. To use it from Terminal, open **Settings → Advanced
-→ Install Command-Line Tool**, which links it into `~/.local/bin`. Or link it yourself (if you
-built from source, the app is in `~/Applications` instead):
+→ Install Command-Line Tool**, which links it into `~/.local/bin`. If that folder isn't on your
+PATH, the same pane says so and offers to add it to your shell's startup file.
+
+Or link it yourself (if you built from source, the app is in `~/Applications` instead):
 
 ```sh
 mkdir -p ~/.local/bin
