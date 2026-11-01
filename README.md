@@ -62,10 +62,28 @@ An app you build yourself isn't quarantined, so macOS opens it without a warning
 ## Command line
 
 The app bundles the `update-agents` script. To use it from Terminal, open **Settings → Advanced
-→ Install Command-Line Tool**, or link it yourself:
+→ Install Command-Line Tool**, which links it into `~/.local/bin`. Or link it yourself (if you
+built from source, the app is in `~/Applications` instead):
 
 ```sh
-ln -s "/Applications/Agent Updater.app/Contents/Resources/update-agents" ~/.local/bin/update-agents
+mkdir -p ~/.local/bin
+ln -sf "/Applications/Agent Updater.app/Contents/Resources/update-agents" ~/.local/bin/update-agents
+```
+
+To use the script without the app, link it from a clone of this repo. Keep the clone: the script
+reads `agent-platforms.json` from the folder it lives in.
+
+```sh
+git clone https://github.com/BlockedPath/agent-updater.git ~/agent-updater
+mkdir -p ~/.local/bin
+ln -sf ~/agent-updater/update-agents ~/.local/bin/update-agents
+```
+
+macOS doesn't put `~/.local/bin` on your PATH by default. If `update-agents` says "command not
+found", add it, then open a new Terminal window:
+
+```sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 ```
 
 ```sh
