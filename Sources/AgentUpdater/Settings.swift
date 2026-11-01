@@ -296,9 +296,10 @@ private struct AdvancedSettings: View {
         }
         Task {
             await checkPath()
-            pathNote = onPath == true
-                ? "Added to \(name). Open a new Terminal window to use update-agents."
-                : "Added to \(name), but a new shell still can't see ~/.local/bin. Check that file."
+            // nil means the shell couldn't be read again; the line was still written.
+            pathNote = onPath == false
+                ? "Added to \(name), but a new shell still can't see ~/.local/bin. Check that file."
+                : "Added to \(name). Open a new Terminal window to use update-agents."
         }
     }
 
